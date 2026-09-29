@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<body>
+  <section style="width:100%;max-width:600px;margin:auto;color:#444;font-size:18px;line-height:1.5;">
+    <div style="width:100%;z-index:2;position:relative;">
+      <img src="https://res.cloudinary.com/chasscepts/image/upload/v1790659347/solfa-scripts/banners/choir-connect_d9wsac.png" alt="!" style="width:100%;height:auto;" />
+    </div>
+    <div style="width:100%;text-align:center;background-color:#eff4fd;color:#0B3D91;">
+      <h1 style="font-size:24px;font-weight:bold;margin:0;padding:16px;">
+        {{subject}}
+      </h1>
+    </div>
+    <p style="padding:0;margin:0;font-size:18px;font-weight:bold;color:#222;">
+      <span>Hi</span>
+      <span>{{name}},</span>
+    </p>
+    <p>Welcome to Neighborly! Please confirm your email address to activate your account and keep it secure.</p>
+    <p>
+      <a href="{{verificationUrl}}" style="display: block; width: 100%; background-color: #0B3D91; color: white; text-align: center; padding: 12px 0; text-decoration: none; border-radius: 4px;">
+        Verify your email
+      </a>
+    </p>
+    <p>
+      <span>You can also copy and paste the following code into our&nbsp;</span>
+      <a href="{{verificationPage}}" style="color: #0B3D91; text-decoration: underline;">verification page</a>:
+      <br />
+      <span style="display:block;margin-top:8px;font-size:16px;padding: 4px; background-color: #f0f0f0; border-radius: 4px;">
+        <strong>{{token}}</strong>
+      </span>
+    </p>
+    <p>This link will expire in 1 hour. If you didn't create a Neighborly account, you can safely ignore this email.</p>
+    <div style="display:flex;flex-direction:column;gap:8px;color:#222;">
+      <div>Regards,</div>
+      <div style="font-weight:bold;font-size:14px;">Neighborly Team</div>
+    </div>
+    <div style="padding:14px 0 22px;color:rgba(15,23,42,.55);font-size:12px; line-height:1.55;background:#ffffff;" bgcolor="#ffffff">
+      <div>
+        Need help? Contact <a style="color:#0B3D91;" href="mailto:{{supportEmail}}">{{supportEmail}}</a>.
+      </div>
+      <div style="margin-top:8px;">
+        © {{year}} {{appName}}. All rights reserved.
+      </div>
+      <div style="margin-top:10px;color:rgba(15,23,42,.58);font-size:12px; line-height:1.6;">
+        This message was sent to {{email}} because you initiated an account action on {{appName}}.
+      </div>
+    </div>
+  </section>
+</body>
+</html>

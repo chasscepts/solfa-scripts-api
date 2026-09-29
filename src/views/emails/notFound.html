@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <meta name="supported-color-schemes" content="light dark">
+    <title>Email Template Not Found</title>
+    <style>
+      :root { color-scheme: light dark; supported-color-schemes: light dark; }
+      body { margin:0; padding:0; background:#0b0a12; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji"; }
+      .page { width:100%; min-height:100vh; padding:32px 16px; background:
+        radial-gradient(1200px 420px at 0% 0%, rgba(168,85,247,.22), transparent 55%),
+        radial-gradient(900px 360px at 100% 20%, rgba(59,130,246,.18), transparent 50%),
+        linear-gradient(180deg, #0b0a12 0%, #111322 100%);
+        box-sizing:border-box;
+      }
+      .card {
+        max-width:640px;
+        margin:0 auto;
+        border-radius:24px;
+        overflow:hidden;
+        border:1px solid rgba(148,163,184,.18);
+        background:rgba(15,16,32,.96);
+        box-shadow:0 24px 80px rgba(2,6,23,.45);
+      }
+      .hero {
+        padding:32px 32px 20px;
+        background:
+          radial-gradient(800px 260px at 10% 0%, rgba(168,85,247,.28), transparent 60%),
+          radial-gradient(700px 260px at 90% 20%, rgba(59,130,246,.20), transparent 55%),
+          linear-gradient(135deg, rgba(15,16,32,1) 0%, rgba(11,14,26,1) 100%);
+      }
+      .badge {
+        display:inline-block;
+        padding:8px 12px;
+        border-radius:999px;
+        background:rgba(248,113,113,.12);
+        border:1px solid rgba(248,113,113,.22);
+        color:#fecaca;
+        font-size:12px;
+        font-weight:700;
+        letter-spacing:.04em;
+        text-transform:uppercase;
+      }
+      h1 {
+        margin:18px 0 10px;
+        color:#f8fafc;
+        font-size:30px;
+        line-height:1.1;
+        letter-spacing:-.03em;
+      }
+      .subtitle {
+        margin:0;
+        color:rgba(226,232,240,.8);
+        font-size:15px;
+        line-height:1.65;
+      }
+      .body { padding:28px 32px 32px; }
+      .copy {
+        margin:0 0 16px;
+        color:rgba(226,232,240,.86);
+        font-size:15px;
+        line-height:1.7;
+      }
+      .panel {
+        margin-top:20px;
+        padding:18px 20px;
+        border-radius:18px;
+        background:rgba(15,23,42,.5);
+        border:1px solid rgba(148,163,184,.14);
+      }
+      .panel-title {
+        margin:0 0 8px;
+        color:#f8fafc;
+        font-size:14px;
+        font-weight:700;
+      }
+      .panel-copy {
+        margin:0;
+        color:rgba(226,232,240,.72);
+        font-size:13px;
+        line-height:1.65;
+      }
+      .code {
+        margin-top:14px;
+        padding:12px 14px;
+        border-radius:14px;
+        background:rgba(2,6,23,.45);
+        border:1px solid rgba(148,163,184,.12);
+        color:#e2e8f0;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size:12px;
+        overflow-wrap:anywhere;
+      }
+      .footer {
+        padding:0 32px 28px;
+        color:rgba(226,232,240,.5);
+        font-size:12px;
+        line-height:1.6;
+      }
+      @media (prefers-color-scheme: light) {
+        body { background:#f6f7fb; }
+        .page {
+          background:
+            radial-gradient(1200px 420px at 0% 0%, rgba(168,85,247,.14), transparent 55%),
+            radial-gradient(900px 360px at 100% 20%, rgba(59,130,246,.12), transparent 50%),
+            linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+        }
+        .card { background:rgba(255,255,255,.97); border:1px solid rgba(15,23,42,.10); box-shadow:0 24px 80px rgba(15,23,42,.12); }
+        .hero {
+          background:
+            radial-gradient(800px 260px at 10% 0%, rgba(168,85,247,.18), transparent 60%),
+            radial-gradient(700px 260px at 90% 20%, rgba(59,130,246,.14), transparent 55%),
+            linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+        }
+        h1, .panel-title { color:#0f172a; }
+        .subtitle, .copy { color:rgba(15,23,42,.78); }
+        .panel { background:#f8fafc; border:1px solid rgba(15,23,42,.08); }
+        .panel-copy, .footer { color:rgba(15,23,42,.58); }
+        .code { background:#eef2ff; border:1px solid rgba(15,23,42,.08); color:#1e293b; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="card">
+        <div class="hero">
+          <div class="badge">Template Missing</div>
+          <h1>Email template not found</h1>
+          <p class="subtitle">
+            The requested email template could not be located. This usually means the template name is incorrect,
+            the file has not been created yet, or it was moved from its expected location.
+          </p>
+        </div>
+
+        <div class="body">
+          <p class="copy">
+            Review the template identifier being requested by the application and confirm that a matching file exists
+            in the configured email templates directory.
+          </p>
+
+          <div class="panel">
+            <p class="panel-title">What to check</p>
+            <p class="panel-copy">
+              Verify the template filename, confirm the path is correct, and make sure the deployment includes the
+              latest email view assets.
+            </p>
+            <div class="code">src/views/emails/templates/</div>
+          </div>
+        </div>
+
+        <div class="footer">
+          This fallback page is shown when an email template lookup fails.
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
