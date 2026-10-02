@@ -3,15 +3,16 @@ import { Router } from 'express';
 import {
   changePassword,
   createUser,
-  forgotPassword,
+  sendResetPasswordLink,
   getMe,
   login,
   logout,
   reAuth,
   refresh,
+  register,
   resetPassword,
-  // sendVerifyEmail,
-  // verifyEmail,
+  sendVerifyEmail,
+  verifyEmail,
 } from '../../../controllers/auth.controller.js';
 import {
   createAccountLimiter,
@@ -21,7 +22,6 @@ import {
 import {
   authenticate,
   authorizeLeastAdmin,
-  // tryAuthenticate,
 } from '../../../middlewares/authenticate.js';
 import validate from '../../../middlewares/validations/index.js';
 import {
@@ -32,16 +32,23 @@ import {
   changePasswordSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
-  // sendVerificationEmailSchema,
+  sendVerificationEmailSchema,
 } from '../../../middlewares/validations/auth.js';
 
 const router = Router({ mergeParams: true });
 
 router.post(
+  '/register',
+  createAccountLimiter,
+  validate(registerSchema),
+  register,
+);
+
+router.post(
   '/new',
   createAccountLimiter,
   validate(registerSchema),
-  authorizeLeastAdmin,
+  authorizeLeastAdmin(),
   createUser,
 );
 
@@ -61,12 +68,12 @@ router.post('/refresh', validate(refreshTokenSchema), refresh);
 
 router.post('/change-password', validate(changePasswordSchema), authenticate, changePassword);
 
-router.post('/forgot-password', forgotPasswordLimiter, validate(forgotPasswordSchema), forgotPassword);
+router.post('/forgot-password', forgotPasswordLimiter, validate(forgotPasswordSchema), sendResetPasswordLink);
 
 router.post('/reset-password', validate(resetPasswordSchema), resetPassword);
 
-// router.post('/verify-email', verifyEmail);
+router.post('/verify-email', verifyEmail);
 
-// router.post('/verify-email/send', validate(sendVerificationEmailSchema), tryAuthenticate, resendVerifyEmailLimiter, sendVerifyEmail);
+router.post('/verify-email/send', validate(sendVerificationEmailSchema), resendVerifyEmailLimiter, sendVerifyEmail);
 
 export default router;

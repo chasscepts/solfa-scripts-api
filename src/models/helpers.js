@@ -12,12 +12,25 @@ const transactionUnsupportedMessages = [
   'transactions are not supported',
   'transaction is not supported',
   'replica set member or mongos',
+  'does not support retryable writes',
 ];
 
 const isTransactionUnsupportedError = (err) => {
-  const message = `${err?.message || ''} ${err?.codeName || ''}`.toLowerCase();
+  const errors = [err];
+  const seen = new Set();
 
-  return transactionUnsupportedMessages.some((part) => message.includes(part));
+  while (errors.length) {
+    const current = errors.pop();
+    if (!current || typeof current !== 'object' || seen.has(current)) continue;
+
+    seen.add(current);
+    const message = `${current.message || ''} ${current.errmsg || ''} ${current.codeName || ''}`.toLowerCase();
+    if (transactionUnsupportedMessages.some((part) => message.includes(part))) return true;
+
+    errors.push(current.cause, current.errorResponse, current.originalError);
+  }
+
+  return false;
 };
 
 export const sanitizeUser = (user) => ({

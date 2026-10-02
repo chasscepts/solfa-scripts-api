@@ -715,6 +715,6 @@ ScriptSchema.pre('validate', function (next) {
   }
 });
 
-const Script = mongoose.model('Script', ScriptSchema);
+const Script = mongoose.model('SolfaScript', ScriptSchema);
 
 export default Script;

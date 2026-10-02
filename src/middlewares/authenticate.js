@@ -12,7 +12,7 @@ export const authenticate = async (req, res, next) => {
       throwError('Authorization header missing', StatusCodes.UNAUTHORIZED, 'Authorization header missing', 'AUTH_HEADER_MISSING');
     }
 
-    const token = authHeader.replace('Bearer ', '');
+    const token = authHeader.replace('Bearer', '').trim();
     const decoded = JsonWebToken.verifyAccessToken(token);
 
     if (!decoded?.id) {
@@ -20,7 +20,7 @@ export const authenticate = async (req, res, next) => {
     }
 
     const { id } = decoded;
-    const user = await User.findOne({ _id: id, isDeleted: false, isActive: true }).lean();
+    const user = await User.findOne({ _id: id, isDeleted: false, status: 'active' }).lean();
 
     if (!user) {
       throwError('User not found for the provided token', 401, 'User not found for the provided token', 'USER_NOT_FOUND');
@@ -45,7 +45,7 @@ export const tryAuthenticate = async (req, res, next) => {
     }
 
     const { id } = decoded;
-    const user = await User.findOne({ _id: id, isDeleted: false, isActive: true }).lean();
+    const user = await User.findOne({ _id: id, isDeleted: false, status: 'active' }).lean();
 
     if (user) {
       req.token = token;

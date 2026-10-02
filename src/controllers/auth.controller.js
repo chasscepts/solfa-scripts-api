@@ -1,7 +1,9 @@
+import mongoose from 'mongoose';
 import {
   EmailToken,
   User,
   authenticatedUser,
+  sanitizeUser,
   withOptionalTransaction,
 } from '../models/index.js';
 import EmailServices from '../services/email.service.js';
@@ -40,22 +42,18 @@ const invalidTokenResult = (message = 'Invalid or already used token.') => ({
 });
 
 const sendVerificationEmail = async (user, token) => {
-  try {
-    const clientBaseUrl = config.app.clientUrl;
-    const verificationPage = `${clientBaseUrl}/verify-email`;
-    const verificationUrl = `${verificationPage}?token=${encodeURIComponent(token)}`;
+  const clientBaseUrl = config.app.clientUrl;
+  const verificationPage = `${clientBaseUrl}/verify-email`;
+  const verificationUrl = `${verificationPage}?token=${encodeURIComponent(token)}`;
 
-    await EmailServices.sendEmail(user.email, {
-      subject: 'Verify your email for Neighborly',
-      name: user.firstname,
-      template: 'verify-email',
-      verificationPage,
-      verificationUrl,
-      token,
-    }, `Token: ${token}, Verification URL: ${verificationUrl}`);
-  } catch {
-    // ignore
-  }
+  await EmailServices.sendEmail(user.email, {
+    subject: 'Verify your email for Solfa Scripts',
+    name: user.firstname,
+    template: 'verify-email',
+    verificationPage,
+    verificationUrl,
+    token,
+  }, `Token: ${token}, Verification URL: ${verificationUrl}`, { throws: true });
 };
 
 export const getMe = async (req, res) => {
@@ -64,7 +62,7 @@ export const getMe = async (req, res) => {
       return res.status(StatusCodes.UNAUTHORIZED).json({ message: Messages.UNAUTHORIZED });
     }
 
-    res.json(authenticatedUser(req.user));
+    res.json(sanitizeUser(req.user));
   } catch (err) {
     return handleError(err, res);
   }
@@ -108,51 +106,67 @@ export const createUser = async (req, res) => {
 
 // POST /auth/register
 export const register = async (req, res) => {
+  let user;
+  let userToken;
+
   try {
-    const country = req.body.country || null;
     const email = (req.body.email || '').trim().toLowerCase();
     const firstname = (req.body.firstname || '').trim();
     const lastname = (req.body.lastname || '').trim();
     const password = req.body.password || '';
-    const phone = (req.body.phone || '').trim() || null;
 
-    if (!(email && firstname && lastname && password && phone)) {
+    if (!(email && firstname && lastname && password)) {
       return res
         .status(StatusCodes.BAD_REQUEST)
         .json({ message: Messages.MISSING_REGISTRATION_FIELDS });
     }
 
     // Check if a user exists with the same email or phone
-    const existingUser = await User.findOne({ $or: [{ email }, { phone }] });
+    const existingUser = await User.findOne({ email });
 
     if (existingUser) {
       return res.status(StatusCodes.SERVER_ERROR).json({ message: Messages.SERVER_ERROR });
     }
 
-    const user = await User.create({
-      country,
+    user = await User.create({
       email,
       firstname,
       lastname,
       password,
-      phone,
     });
 
     const { hash: tokenHash, token } = randomHash(32);
     const expiresAt = new Date(Date.now() + EMAIL_TOKEN_TTL_MS);
 
-    await createEmailToken({
+    userToken = await createEmailToken({
       expiresAt,
       metadata: {},
       tokenHash,
       type: 'email_verify',
-      user: user._id,
+      subject: user._id,
+      subjectRef: 'User',
     });
 
     await sendVerificationEmail(user, token);
 
-    return res.status(StatusCodes.CREATED).json(authenticatedUser(user));
+    return res.status(StatusCodes.CREATED).json({ status: 'success' });
   } catch (err) {
+    if (user) {
+      try {
+        await User.deleteOne({ _id: user._id });
+      } catch {
+        // ignore errors while deleting the user
+      }
+    }
+
+    if (userToken) {
+      try {
+        await EmailToken.deleteOne({ _id: userToken._id });
+      } catch {
+        // ignore errors while deleting the token
+      }
+    }
+
     return handleError(err, res);
   }
 };
@@ -167,7 +181,7 @@ export const login = async (req, res) => {
       return res.status(StatusCodes.BAD_REQUEST).json({ message: Messages.MISSING_AUTH_FIELDS });
     }
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email, isDeleted: false, status: 'active' });
 
     if (!user) {
       return res.status(StatusCodes.UNAUTHORIZED).json({ message: Messages.INVALID_CREDENTIALS });
@@ -270,7 +284,7 @@ export const changePassword = async (req, res) => {
 };
 
 // Route: POST /auth/forgot-password
-export const forgotPassword = async (req, res) => {
+export const sendResetPasswordLink = async (req, res) => {
   try {
     const email = (req.body?.email || '').trim().toLowerCase();
 
@@ -298,14 +312,14 @@ export const forgotPassword = async (req, res) => {
     });
 
     const clientBaseUrl = config.app.clientUrl;
-    const resetUrl = `${clientBaseUrl}/api/v1/auth/reset-password?token=${encodeURIComponent(token)}`;
+    const resetUrl = `${clientBaseUrl}/reset-password?token=${encodeURIComponent(token)}`;
 
     await EmailServices.sendEmail(user.email, {
       subject: 'Reset your password',
       name: user.firstname,
       template: 'forgot-password',
       resetUrl,
-    }, `Reset your password: ${resetUrl}`);
+    }, `Reset your password: ${resetUrl}`, { throws: true });
 
     return res.json({ message: 'If an account exists for this email, a reset link has been sent.' });
   } catch (err) {
@@ -316,7 +330,7 @@ export const forgotPassword = async (req, res) => {
 // Route: POST /auth/reset-password
 export const resetPassword = async (req, res) => {
   try {
-    const password = req.body?.newPassword || '';
+    const password = req.body?.password || '';
     const token = req.body?.token || '';
 
     if (!token) {
@@ -343,6 +357,12 @@ export const resetPassword = async (req, res) => {
         return { error: { message: 'Token has expired.' }, status: 400 };
       }
 
+      const user = await withSession(User.findOne({ _id: emailToken.subject, status: 'active', isDeleted: false }), session);
+
+      if (!user) {
+        return { error: { message: 'User not found.' }, status: 404 };
+      }
+
       const now = new Date();
       const consumeResult = await EmailToken.updateOne(
         { _id: emailToken._id, consumedAt: null },
@@ -364,14 +384,18 @@ export const resetPassword = async (req, res) => {
         return { error: { message: 'User not found.' }, status: 404 };
       }
 
-      return { data: { message: 'Password reset successful.' } };
+      return { data: { message: 'Password reset successful.', user } };
     });
 
-    if (result.error) {
+    if (result.error || !result.data?.user) {
       return res.status(result.status || 400).json(result.error);
     }
 
-    return res.json(result.data);
+    const userResponse = authenticatedUser(result.data.user);
+
+    delete userResponse.user;
+
+    return res.json(userResponse);
   } catch (err) {
     return handleError(err, res);
   }
@@ -410,7 +434,7 @@ export const sendVerifyEmail = async (req, res) => {
 
       // Invalidate any previous unused verification tokens for this user.
       await EmailToken.updateMany(
-        { consumedAt: null, type: 'email_verify', user: user._id },
+        { consumedAt: null, type: 'email_verify', subject: user._id },
         { consumedAt: now },
         sessionOptions(session),
       );
@@ -420,7 +444,8 @@ export const sendVerifyEmail = async (req, res) => {
         metadata: {},
         tokenHash,
         type: 'email_verify',
-        user: user._id,
+        subject: user._id,
+        subjectRef: 'User',
       }, session);
     });
 
@@ -455,7 +480,7 @@ export const verifyEmail = async (req, res) => {
           data: null,
           error: {
             code: 'TOKEN_INVALID',
-            message: 'Token has expired.',
+            message: 'This token is invalid or has expired.',
           },
           status: 400,
         };
@@ -468,7 +493,7 @@ export const verifyEmail = async (req, res) => {
           data: null,
           error: {
             code: 'TOKEN_INVALID',
-            message: 'Token has expired.',
+            message: 'Token is invalid or has expired.',
           },
           status: 400,
         };
@@ -480,7 +505,7 @@ export const verifyEmail = async (req, res) => {
           error: {
             code: 'TOKEN_EXPIRED',
             email: user.email,
-            message: 'Token has expired.',
+            message: 'Token is invalid or has expired.',
           },
           status: 400,
         };
@@ -498,7 +523,7 @@ export const verifyEmail = async (req, res) => {
           data: null,
           error: {
             code: 'TOKEN_INVALID',
-            message: 'Token has expired.',
+            message: 'Token is invalid or has already been consumed.',
           },
           status: 400,
         };
@@ -506,7 +531,7 @@ export const verifyEmail = async (req, res) => {
 
       await User.updateOne(
         { _id: user._id },
-        { emailVerified: true },
+        { emailVerified: true, status: 'active' },
         sessionOptions(session),
       );
       user.emailVerified = true;
@@ -518,9 +543,7 @@ export const verifyEmail = async (req, res) => {
       return res.status(result.status || 400).json(result.error);
     }
 
-    const user = result.data;
-
-    return res.json(authenticatedUser(user));
+    return res.json({ status: 'success' });
   } catch (err) {
     return handleError(err, res);
   }

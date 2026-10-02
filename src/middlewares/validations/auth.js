@@ -29,7 +29,7 @@ export const forgotPasswordSchema = Joi.object({
 
 export const resetPasswordSchema = Joi.object({
   token: Joi.string().required(),
-  newPassword: Joi.string().min(8).required(),
+  password: Joi.string().min(8).required(),
 });
 
 export const sendVerificationEmailSchema = Joi.object({

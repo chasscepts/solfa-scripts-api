@@ -8,13 +8,13 @@ const SUPER_ADMIN = 'super_admin';
 const CONTRIBUTOR = 'contributor';
 
 export const Roles = {
-  ADMIN: ADMIN,
-  SUPER_ADMIN: SUPER_ADMIN,
-  CONTRIBUTOR: CONTRIBUTOR,
   USER: USER,
+  ADMIN: ADMIN,
+  CONTRIBUTOR: CONTRIBUTOR,
+  SUPER_ADMIN: SUPER_ADMIN,
 };
 
-export const RolesList = [USER, CONTRIBUTOR, ADMIN, SUPER_ADMIN];
+export const RolesList = Object.values(Roles);
 
 export const getAuthorizedUserRoles = (role) => {
   const index = RolesList.indexOf(role);
