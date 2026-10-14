@@ -1,8 +1,9 @@
 import { Schema, model } from 'mongoose';
 
 import { RolesList, Roles } from '../utils/roles.js';
+import { STATUSES } from '../utils/constants/index.js';
 import { hashPassword as hashUserPassword } from '../utils/encryption.js';
-import { hashPasswordInUpdate } from '../utils/models.js';
+import { hashPasswordInUpdate } from './helpers.js';
 
 const userSchema = new Schema({
   email: { type: String, required: true, unique: true },
@@ -14,12 +15,14 @@ const userSchema = new Schema({
   password: { type: String, required: true },
   photo: { type: Schema.Types.ObjectId, ref: 'Photo', default: null },
   role: { type: String, enum: RolesList, required: true, default: Roles.USER },
-  status: { type: String, enum: ['active', 'banned', 'pending', 'rejected', 'suspended'], default: 'pending', required: true },
+  status: { type: String, enum: STATUSES, default: 'pending', required: true },
 }, { timestamps: true });
 
 userSchema.index({ email: 1 }, { name: 'users_email_unique', unique: true });
 userSchema.index({ status: 1 }, { name: 'users_status_idx' });
 userSchema.index({ isDeleted: 1 }, { name: 'users_is_deleted_idx' });
+userSchema.index({ role: 1 }, { name: 'users_role_idx' });
+userSchema.index({ firstname: 'text', lastname: 'text', email: 'text' }, { name: 'users_text_index' });
 
 userSchema.pre('save', async function hashUserPasswordBeforeSave() {
   const user = this;

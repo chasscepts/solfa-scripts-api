@@ -9,7 +9,7 @@ import StatusCodes from '../utils/statusCodes.js';
 const cloudEnvs = config.cloudinary;
 
 const allowedFolders = [
-  'external-solfas', 'external-staffs', 'internal-solfas', 'internal-staffs',
+  'reference-scripts', 'solfa-scripts', 'staff-scripts',
   'profile-photos',
 ];
 

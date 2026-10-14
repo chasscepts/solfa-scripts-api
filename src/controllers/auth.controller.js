@@ -5,6 +5,8 @@ import {
   authenticatedUser,
   sanitizeUser,
   withOptionalTransaction,
+  withSession,
+  sessionOptions,
 } from '../models/index.js';
 import EmailServices from '../services/email.service.js';
 import { Messages, StatusCodes } from '../utils/index.js';
@@ -21,10 +23,6 @@ import { Roles } from '../utils/roles.js';
 
 const EMAIL_TOKEN_TTL_MS = 60 * 60 * 1000;
 const EMAIL_VERIFY_TOKEN_TTL_MS = 24 * EMAIL_TOKEN_TTL_MS;
-
-const sessionOptions = (session) => (session ? { session } : undefined);
-
-const withSession = (query, session) => (session ? query.session(session) : query);
 
 const createEmailToken = async (tokenData, session) => {
   if (!session) {
@@ -181,7 +179,12 @@ export const login = async (req, res) => {
       return res.status(StatusCodes.BAD_REQUEST).json({ message: Messages.MISSING_AUTH_FIELDS });
     }
 
-    const user = await User.findOne({ email, isDeleted: false, status: 'active' });
+    const user = await User.findOne({
+      email,
+      isDeleted: false,
+      emailVerified: true,
+      status: 'active',
+    });
 
     if (!user) {
       return res.status(StatusCodes.UNAUTHORIZED).json({ message: Messages.INVALID_CREDENTIALS });
@@ -202,19 +205,23 @@ export const login = async (req, res) => {
 };
 
 export const reAuth = async (req, res) => {
-  const { token } = req.body;
-  const { id } = JsonWebToken.verifyAccessToken(token);
-  const user = await User.findOne({ _id: id, isDeleted: false, status: 'active' });
+  try {
+    const { token } = req.body;
+    const { id } = JsonWebToken.verifyAccessToken(token);
+    const user = await User.findOne({ _id: id, isDeleted: false, status: 'active' });
 
-  if (!user) {
-    throwError(
-      Messages.UNPROCESSABLE_ENTITY,
-      StatusCodes.UNPROCESSABLE_ENTITY,
-      Messages.UNPROCESSABLE_ENTITY,
-    );
+    if (!user) {
+      throwError(
+        Messages.UNPROCESSABLE_ENTITY,
+        StatusCodes.UNPROCESSABLE_ENTITY,
+        Messages.UNPROCESSABLE_ENTITY,
+      );
+    }
+
+    res.json(authenticatedUser(user));
+  } catch (err) {
+    return handleError(err, res);
   }
-
-  res.json(authenticatedUser(user));
 };
 
 // POST /auth/refresh

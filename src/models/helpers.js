@@ -1,6 +1,59 @@
+import { hashPassword } from '../utils/encryption.js';
 import JWT from '../utils/jwt.js';
+import StatusCodes from '../utils/statusCodes.js';
 
 /** @import mongoose from 'mongoose'; */
+
+const MAX_PAGE_LIMIT = 50;
+const DEFAULT_PAGE_LIMIT = 25;
+
+const SCRIPT_FIELDS = [
+  'tonic',
+  'meter',
+  'tempo',
+  'columns',
+  'rows',
+  'satb',
+  'structuredNotes',
+];
+
+const SONG_FIELDS = [
+  'title',
+  'composer',
+  'description',
+  'devotionalFocus',
+  'liturgicalFunction',
+  'liturgicalSeason',
+  'musicalStyle',
+];
+
+export async function hashPasswordInUpdate() {
+  const update = this.getUpdate() || {};
+
+  // Password could be on update.password or update.$set.password
+  const nextPassword =
+    update.password ??
+    (update.$set ? update.$set.password : undefined);
+
+  if (!nextPassword) return;
+
+  const hashed = await hashPassword(String(nextPassword));
+
+  // Put it back in the same place it came from
+  if (update.password !== undefined) {
+    update.password = hashed;
+  }
+
+  if (update.$set && update.$set.password !== undefined) {
+    update.$set.password = hashed;
+  }
+
+  this.setUpdate(update);
+};
+
+export const isValidObjectId = (id) => {
+  return id && typeof id === 'string' && id.match(/^[0-9a-fA-F]{24}$/);
+};
 
 /**
  * @callback OptionalTransactionCallback
@@ -37,7 +90,7 @@ export const sanitizeUser = (user) => ({
   email: user.email,
   firstname: user.firstname,
   lastname: user.lastname,
-  id: user._id,
+  _id: user._id,
   status: user.status,
   photo: user.photo,
   profilePhotoUrl: user.photo?.url || null,
@@ -94,3 +147,75 @@ export const withOptionalTransaction = (() => {
     return result;
   };
 })();
+
+export const sessionOptions = (session) => (session ? { session } : undefined);
+
+export const withSession = (query, session) => (session ? query.session(session) : query);
+
+export const fillScriptFields = (script, song) => {
+  if (!(script && song)) return script;
+
+  return {
+    ...script,
+    title: song.title,
+    composer: song.composer,
+  };
+};
+
+export const pickScriptFields = (body = {}) => {
+  const data = {};
+
+  for (const field of SCRIPT_FIELDS) {
+    if (Object.prototype.hasOwnProperty.call(body, field)) {
+      data[field] = body[field];
+    }
+  }
+
+  return data;
+};
+
+export const pickSongFields = (body, options = { throwOnTitleMissing: true }) => {
+  const formData = body ?? {};
+  const throwOnTitleMissing = options?.throwOnTitleMissing ?? true;
+
+  if (throwOnTitleMissing && !formData.title) {
+    throwError('Title is required', StatusCodes.UNPROCESSABLE_ENTITY);
+  }
+
+  const data = {};
+
+  for (const field of SONG_FIELDS) {
+    if (Object.prototype.hasOwnProperty.call(formData, field)) {
+      data[field] = formData[field];
+    }
+  }
+
+  return data;
+};
+
+export const getPagination = (req, defaultLimit) => {
+  const page = Math.max(
+    Number.parseInt(req.query.page, 10) || 1,
+    1
+  );
+
+  let limit = Number.parseInt(req.query.limit, 10);
+
+  if (defaultLimit) {
+    limit ||= defaultLimit;
+  } else {
+    limit = Math.min(
+      Math.max(
+        limit || DEFAULT_PAGE_LIMIT,
+        1
+      ),
+      MAX_PAGE_LIMIT
+    );
+  }
+
+  return {
+    page,
+    limit,
+    skip: (page - 1) * limit,
+  };
+};

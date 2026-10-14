@@ -1,43 +1,20 @@
 import mongoose from 'mongoose';
 
-import SolfaScript from '../models/SolfaScript.js';
-
-const MAX_LIMIT = 50;
-const DEFAULT_LIMIT = 20;
-
-/*
-|--------------------------------------------------------------------------
-| Helpers
-|--------------------------------------------------------------------------
-*/
-
-const getUserId = (req) => {
-  return req.user?._id || req.user?.id;
-};
+import {
+  SolfaScript,
+  Song,
+  fillScriptFields,
+  getPagination,
+  pickScriptFields,
+  pickSongFields,
+  withOptionalTransaction,
+  withSession,
+} from '../models/index.js';
+import { handleError } from '../utils/errors/index.js';
+import StatusCodes from '../utils/statusCodes.js';
 
 const isValidObjectId = (id) => {
   return mongoose.isValidObjectId(id);
-};
-
-const getPagination = (req) => {
-  const page = Math.max(
-    Number.parseInt(req.query.page, 10) || 1,
-    1
-  );
-
-  const limit = Math.min(
-    Math.max(
-      Number.parseInt(req.query.limit, 10) || DEFAULT_LIMIT,
-      1
-    ),
-    MAX_LIMIT
-  );
-
-  return {
-    page,
-    limit,
-    skip: (page - 1) * limit,
-  };
 };
 
 const sendValidationError = (res, error) => {
@@ -57,81 +34,63 @@ const sendValidationError = (res, error) => {
   return null;
 };
 
-/*
-|--------------------------------------------------------------------------
-| Allowed fields
-|--------------------------------------------------------------------------
-|
-| Only fields in this list may be written by the client.
-| owner is intentionally excluded.
-|--------------------------------------------------------------------------
-*/
+export const createScript = async (req, res) => {
+  let script;
+  let song;
 
-const SCRIPT_FIELDS = [
-  'title',
-  'composer',
-  'tonic',
-  'meter',
-  'tempo',
-  'columns',
-  'rows',
-  'satb',
-  'structuredNotes',
-];
-
-const pickScriptFields = (body = {}) => {
-  const data = {};
-
-  for (const field of SCRIPT_FIELDS) {
-    if (Object.prototype.hasOwnProperty.call(body, field)) {
-      data[field] = body[field];
+  const cleanup = async () => {
+    if (script) {
+      try {
+        await SolfaScript.deleteOne({ _id: script._id });
+      } catch {
+        // ignore any errors while deleting the script
+      }
     }
-  }
+    if (song) {
+      try {
+        await Song.deleteOne({ _id: song._id });
+      } catch {
+        // ignore any errors while deleting the song
+      }
+    }
+  };
 
-  return data;
-};
-
-/*
-|--------------------------------------------------------------------------
-| POST /api/scripts
-|--------------------------------------------------------------------------
-*/
-
-export const createScript = async (req, res, next) => {
   try {
-    const owner = getUserId(req);
+    const result = await withOptionalTransaction(SolfaScript, async (session) => {
+      const songData = pickSongFields(req.body);
 
-    if (!owner) {
-      return res.status(401).json({
-        success: false,
-        message: 'Authentication required.',
-      });
+      song = await withSession(Song.create(songData), session);
+
+      if (!song) {
+        return { error: true, status: StatusCodes.UNPROCESSABLE_ENTITY, data: { message: 'Failed to create Song' } };
+      }
+
+      const data = pickScriptFields(req.body);
+
+      script = await withSession(SolfaScript.create(data), session);
+
+      if (!script) {
+        return { error: true, status: StatusCodes.UNPROCESSABLE_ENTITY, data: { message: 'Failed to create Solfa script' } };
+      }
+
+      return { error: false, status: 200, data: script };
+    });
+
+    if (result.error) {
+      cleanup();
     }
 
-    const data = pickScriptFields(req.body);
-
-    /*
-     * Owner always comes from authentication.
-     * Never accept owner/userId/createdBy from the request body.
-     */
-    const script = await SolfaScript.create({
-      ...data,
-      owner,
-    });
-
-    return res.status(201).json({
-      success: true,
-      message: 'Script created successfully.',
-      data: script,
-    });
+    return res.status(result.status).json(result.data);
   } catch (error) {
+    cleanup();
+
     const handled = sendValidationError(res, error);
 
     if (handled) {
       return handled;
     }
 
-    return next(error);
+    return handleError(error, res);
   }
 };
 
@@ -141,17 +100,8 @@ export const createScript = async (req, res, next) => {
 |--------------------------------------------------------------------------
 */
 
-export const listMyScripts = async (req, res, next) => {
+export const listScripts = async (req, res) => {
   try {
-    const owner = getUserId(req);
-
-    if (!owner) {
-      return res.status(401).json({
-        success: false,
-        message: 'Authentication required.',
-      });
-    }
-
     const { page, limit, skip } = getPagination(req);
 
     /*
@@ -161,9 +111,7 @@ export const listMyScripts = async (req, res, next) => {
      */
     const search = String(req.query.search || '').trim();
 
-    const filter = {
-      owner,
-    };
+    const filter = {};
 
     if (search) {
       /*
@@ -197,7 +145,7 @@ export const listMyScripts = async (req, res, next) => {
     return res.status(200).json({
       success: true,
       data: scripts,
-      pagination: {
+      meta: {
         page,
         limit,
         total,
@@ -205,7 +153,7 @@ export const listMyScripts = async (req, res, next) => {
       },
     });
   } catch (error) {
-    return next(error);
+    return handleError(error, res);
   }
 };
 
@@ -215,17 +163,9 @@ export const listMyScripts = async (req, res, next) => {
 |--------------------------------------------------------------------------
 */
 
-export const getScript = async (req, res, next) => {
+export const getScript = async (req, res) => {
   try {
-    const owner = getUserId(req);
     const { id } = req.params;
-
-    if (!owner) {
-      return res.status(401).json({
-        success: false,
-        message: 'Authentication required.',
-      });
-    }
 
     if (!isValidObjectId(id)) {
       return res.status(404).json({
@@ -234,18 +174,7 @@ export const getScript = async (req, res, next) => {
       });
     }
 
-    /*
-     * IMPORTANT:
-     *
-     * owner is part of the query.
-     *
-     * Therefore a user cannot fetch another user's script even
-     * if they somehow know its MongoDB ObjectId.
-     */
-    const script = await SolfaScript.findOne({
-      _id: id,
-      owner,
-    }).lean();
+    const script = await SolfaScript.findById(id).lean();
 
     if (!script) {
       return res.status(404).json({
@@ -254,12 +183,18 @@ export const getScript = async (req, res, next) => {
       });
     }
 
-    return res.status(200).json({
-      success: true,
-      data: script,
-    });
+    const song = await Song.findOne({ solfaScript: script._id }).lean();
+
+    if (!song) {
+      return res.status(404).json({
+        success: false,
+        message: 'Associated song not found.',
+      });
+    }
+
+    return res.status(200).json(fillScriptFields(script, song));
   } catch (error) {
-    return next(error);
+    return handleError(error, res);
   }
 };
 
@@ -269,17 +204,9 @@ export const getScript = async (req, res, next) => {
 |--------------------------------------------------------------------------
 */
 
-export const updateScript = async (req, res, next) => {
+export const updateScript = async (req, res) => {
   try {
-    const owner = getUserId(req);
     const { id } = req.params;
-
-    if (!owner) {
-      return res.status(401).json({
-        success: false,
-        message: 'Authentication required.',
-      });
-    }
 
     if (!isValidObjectId(id)) {
       return res.status(404).json({
@@ -289,6 +216,8 @@ export const updateScript = async (req, res, next) => {
     }
 
     const updates = pickScriptFields(req.body);
+
+    console.log(req.body);
 
     /*
      * Prevent PATCH {} from silently succeeding.
@@ -300,23 +229,17 @@ export const updateScript = async (req, res, next) => {
       });
     }
 
-    /*
-     * owner is deliberately not included in `updates`.
-     *
-     * The query is also restricted by owner.
-     */
     const script = await SolfaScript.findOneAndUpdate(
       {
         _id: id,
-        owner,
       },
       {
         $set: updates,
       },
       {
-        new: true,
-        runValidators: true,
         context: 'query',
+        returnDocument: 'after',
+        runValidators: true,
       }
     );
 
@@ -339,7 +262,7 @@ export const updateScript = async (req, res, next) => {
       return handled;
     }
 
-    return next(error);
+    return handleError(error, res);
   }
 };
 
@@ -349,17 +272,9 @@ export const updateScript = async (req, res, next) => {
 |--------------------------------------------------------------------------
 */
 
-export const deleteScript = async (req, res, next) => {
+export const deleteScript = async (req, res) => {
   try {
-    const owner = getUserId(req);
     const { id } = req.params;
-
-    if (!owner) {
-      return res.status(401).json({
-        success: false,
-        message: 'Authentication required.',
-      });
-    }
 
     if (!isValidObjectId(id)) {
       return res.status(404).json({
@@ -368,10 +283,16 @@ export const deleteScript = async (req, res, next) => {
       });
     }
 
-    const script = await SolfaScript.findOneAndDelete({
-      _id: id,
-      owner,
-    });
+    const script = await SolfaScript.findOneAndUpdate(
+      { _id: id },
+      { $set: { isDeleted: true } },
+      {
+        
+        context: 'query',
+        returnDocument: 'after',
+        runValidators: true,
+      },
+    );
 
     if (!script) {
       return res.status(404).json({
@@ -385,6 +306,6 @@ export const deleteScript = async (req, res, next) => {
       message: 'Script deleted successfully.',
     });
   } catch (error) {
-    return next(error);
+    return handleError(error, res);
   }
 };

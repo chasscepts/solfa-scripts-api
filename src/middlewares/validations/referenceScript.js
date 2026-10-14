@@ -2,7 +2,7 @@ import Joi from 'joi';
 
 import { objectId } from './common.js';
 
-export const externalScriptSchema = Joi.object({
+export const referenceScriptSchema = Joi.object({
   composer: Joi.string().allow('').optional(),
   devotionalFocus: Joi.string().allow('').optional(),
   liturgicalFunction: Joi.string().allow('').optional(),
@@ -13,7 +13,7 @@ export const externalScriptSchema = Joi.object({
   title: Joi.string().allow('').optional(),
 });
 
-export const updateExternalScriptSchema = Joi.object({
+export const updateReferenceScriptSchema = Joi.object({
   script: objectId.allow(null).optional(),
   scriptRef: Joi.string().valid('SolfaScript').when('script', {
     is: objectId.required(),

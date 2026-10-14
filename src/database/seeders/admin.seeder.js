@@ -16,8 +16,10 @@ const seed = async () => {
     firstname: config.defaultSuperAdmin.firstname,
     lastname: config.defaultSuperAdmin.lastname,
     email: config.defaultSuperAdmin.email,
+    emailVerified: true,
     password: config.defaultSuperAdmin.password,
     role: Roles.SUPER_ADMIN,
+    status: 'active',
   });
 
   console.log('%c ✅ Successfully seeded the admin table', 'color:green;');

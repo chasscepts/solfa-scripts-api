@@ -517,55 +517,18 @@ const StructuredSectionSchema = new Schema(
 
 const ScriptSchema = new Schema(
   {
-    /*
-    |--------------------------------------------------------------------------
-    | Ownership
-    |--------------------------------------------------------------------------
-    */
-
-    owner: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-      index: true,
-      immutable: true,
-    },
-
-    /*
-    |--------------------------------------------------------------------------
-    | Metadata
-    |--------------------------------------------------------------------------
-    */
-
-    title: {
-      type: String,
-      required: true,
-      trim: true,
-      minlength: 1,
-      maxlength: 200,
-    },
-
-    composer: {
-      type: String,
-      trim: true,
-      maxlength: 200,
-      default: 'Unknown',
-    },
-
     tonic: {
       type: String,
       required: true,
       trim: true,
       maxlength: 20,
     },
-
     meter: {
       type: String,
       required: true,
       trim: true,
       match: /^\d+\s*\/\s*\d+$/,
     },
-
     tempo: {
       type: Number,
       min: 20,
@@ -629,6 +592,10 @@ const ScriptSchema = new Schema(
         message: 'A script cannot contain more than 100 sections.',
       },
     },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,
@@ -647,21 +614,6 @@ const ScriptSchema = new Schema(
 |--------------------------------------------------------------------------
 */
 
-ScriptSchema.index({
-  owner: 1,
-  updatedAt: -1,
-});
-
-ScriptSchema.index({
-  owner: 1,
-  createdAt: -1,
-});
-
-ScriptSchema.index({
-  owner: 1,
-  title: 1,
-});
-
 /*
 |--------------------------------------------------------------------------
 | Validation
@@ -675,43 +627,37 @@ ScriptSchema.index({
 |--------------------------------------------------------------------------
 */
 
-ScriptSchema.pre('validate', function (next) {
-  try {
-    for (const section of this.structuredNotes || []) {
-      for (const part of section.parts || []) {
-        if (!part || typeof part !== 'object') {
-          return next(new Error('Invalid score part.'));
+ScriptSchema.pre('validate', function () {
+  for (const section of this.structuredNotes || []) {
+    for (const part of section.parts || []) {
+      if (!part || typeof part !== 'object') {
+        throw new Error('Invalid score part.');
+      }
+
+      if (!PART_TYPES.includes(part.type)) {
+        throw new Error('Invalid score part type.');
+      }
+
+      if (part.type === 'voice') {
+        if (!VOICES.includes(part.voice)) {
+          throw new Error('Invalid voice part.');
         }
 
-        if (!PART_TYPES.includes(part.type)) {
-          return next(new Error('Invalid score part type.'));
+        if (!Array.isArray(part.columns)) {
+          throw new Error('Voice part columns must be an array.');
         }
+      }
 
-        if (part.type === 'voice') {
-          if (!VOICES.includes(part.voice)) {
-            return next(new Error('Invalid voice part.'));
-          }
-
-          if (!Array.isArray(part.columns)) {
-            return next(new Error('Voice part columns must be an array.'));
-          }
-        }
-
-        if (part.type === 'text') {
-          if (
-            !part.content ||
-            part.content.type !== 'solfa-word-style-text' ||
-            !Array.isArray(part.content.segments)
-          ) {
-            return next(new Error('Invalid text part.'));
-          }
+      if (part.type === 'text') {
+        if (
+          !part.content ||
+          part.content.type !== 'solfa-word-style-text' ||
+          !Array.isArray(part.content.segments)
+        ) {
+          throw new Error('Invalid text part.');
         }
       }
     }
-
-    next();
-  } catch (error) {
-    next(error);
   }
 });
 
