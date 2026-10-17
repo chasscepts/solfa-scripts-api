@@ -8,13 +8,12 @@ const MAX_PAGE_LIMIT = 50;
 const DEFAULT_PAGE_LIMIT = 25;
 
 const SCORE_FIELDS = [
-  'tonic',
-  'meter',
-  'tempo',
-  'columns',
-  'rows',
-  'satb',
-  'structuredNotes',
+  'composer',
+  'format',
+  'layout',
+  'score',
+  'title',
+  'version',
 ];
 
 const SONG_FIELDS = [

@@ -1,0 +1,141 @@
+const DURATION = {
+  '1/1': 12,
+  '1/2': 6,
+  '1/3': 4,
+  '1/4': 3,
+  '3/4': 9,
+};
+const PITCHES = new Set(['d', 'de', 'r', 'ma', 'm', 'f', 'fe', 's', 'se', 'l', 'ta', 't']);
+const VOICES = new Set(['soprano', 'alto', 'tenor', 'bass']);
+const REST = '𝄽';
+const HOLD = '—';
+
+const invalid = (message) => {
+  throw new Error('Invalid canonical score: ' + message);
+};
+const object = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
+const assert = (condition, message) => {
+  if (!condition) invalid(message);
+};
+const nonempty = (value) => typeof value === 'string' && value.length > 0 && value.length <= 100;
+
+const inspectBeat = (beat, ids, previous, voice) => {
+  assert(object(beat) && nonempty(beat.id) && !ids.has(beat.id), 'Beat IDs must be unique.');
+  ids.add(beat.id);
+  assert(Object.hasOwn(DURATION, beat.duration), 'Unsupported beat duration.');
+  const hold = beat.text === HOLD || beat.value === HOLD;
+  const rest = beat.value === REST;
+
+  if (hold) {
+    assert(previous !== null && !rest, 'Orphan HOLD in ' + voice + '.');
+    assert(beat.isAttack !== true, 'A HOLD cannot be an attack.');
+  } else if (rest) {
+    assert(beat.isAttack !== true, 'A REST cannot be an attack.');
+  } else {
+    assert(PITCHES.has(beat.value) && beat.isAttack !== false, 'Invalid note attack.');
+  }
+  if (beat.octaveShift !== undefined) {
+    assert(Number.isInteger(beat.octaveShift) &&
+      beat.octaveShift >= -2 && beat.octaveShift <= 2, 'Invalid octave shift.');
+  }
+
+  return {
+    duration: DURATION[beat.duration],
+    previous: rest ? null : hold ? previous : beat.value,
+  };
+};
+
+export const validateCanonicalScoreDocument = (document) => {
+  assert(object(document), 'Expected an object.');
+  assert(document.format === 'choirconnect-canonical-score' && document.version === 1,
+    'Unsupported format or version.');
+  assert(Array.isArray(document.layout), 'Layout must be an array.');
+  assert(object(document.score) && object(document.score.context) &&
+    Array.isArray(document.score.parts), 'Missing score parts or context.');
+  const { context, parts } = document.score;
+  const meter = String(context.meter || '').match(/^(\d+)\/(\d+)$/);
+
+  assert(meter && Number(meter[1]) > 0 && Number(meter[2]) > 0,
+    'Unsupported meter.');
+  assert(Number.isFinite(context.tempo) && context.tempo > 0,
+    'Tempo must be positive.');
+  assert(typeof context.tonic === 'string' && context.tonic.length > 0,
+    'Tonic is required.');
+  assert(parts.length <= 4 && parts.length > 0, 'Expected one to four voice parts.');
+  const ids = new Set();
+  const voices = new Set();
+  const counts = new Set();
+
+  for (const part of parts) {
+    assert(object(part) && VOICES.has(part.id) && !voices.has(part.id),
+      'Duplicate or unknown voice.');
+    voices.add(part.id);
+    assert(Array.isArray(part.measures), 'Voice measures must be an array.');
+    counts.add(part.measures.length);
+    let previous = null;
+
+    for (const measure of part.measures) {
+      assert(object(measure) && Array.isArray(measure.slots),
+        'Measure slots must be an array.');
+      let measureDuration = 0;
+
+      for (const slot of measure.slots) {
+        if (slot === null) {
+          measureDuration += 12;
+          previous = null;
+          continue;
+        }
+
+        const beats = Array.isArray(slot?.beats) ? slot.beats : [slot];
+
+        assert(beats.length > 0 && beats.length <= 32, 'Invalid beat group.');
+        let total = 0;
+
+        for (const beat of beats) {
+          const inspected = inspectBeat(beat, ids, previous, part.id);
+          total += inspected.duration;
+          previous = inspected.previous;
+        }
+        assert(total === 12, 'A score slot must total one beat.');
+        measureDuration += total;
+      }
+
+      assert(measureDuration === Number(meter[1]) * 12,
+        'Measure duration does not match meter.');
+    }
+  }
+  assert(counts.size <= 1, 'All voices must have the same measure count.');
+
+  const cursors = new Map([...voices].map((voice) => [voice, 0]));
+
+  for (const row of document.layout) {
+    assert(object(row) && Array.isArray(row.parts), 'Invalid layout row.');
+
+    for (const part of row.parts) {
+      assert(object(part), 'Invalid layout part.');
+      if (part.type !== 'voice') continue;
+
+      assert(voices.has(part.voice) && Array.isArray(part.columns),
+        'Layout references an unknown voice.');
+      const scorePart = parts.find((item) => item.id === part.voice);
+
+      for (const column of part.columns) {
+        const measure = scorePart.measures[cursors.get(part.voice)];
+
+        assert(measure && Array.isArray(column.notes) &&
+          column.notes.length === measure.slots.length, 'Layout and score widths disagree.');
+        assert(column.notes.every((cell) => object(cell) && nonempty(cell.id) &&
+          Object.keys(cell).every((key) => key === 'id')),
+        'Layout cells must contain IDs only.');
+        cursors.set(part.voice, cursors.get(part.voice) + 1);
+      }
+    }
+  }
+
+  for (const part of parts) {
+    assert(cursors.get(part.id) === part.measures.length,
+      'Layout does not cover every voice measure.');
+  }
+
+  return document;
+};

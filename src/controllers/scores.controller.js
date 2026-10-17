@@ -18,6 +18,13 @@ const isValidObjectId = (id) => {
 };
 
 const sendValidationError = (res, error) => {
+  if (error?.message?.startsWith('Invalid canonical score:')) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+
   if (error instanceof mongoose.Error.ValidationError) {
     return res.status(400).json({
       success: false,
@@ -132,7 +139,7 @@ export const listScores = async (req, res) => {
     const [scores, total] = await Promise.all([
       Score.find(filter)
         .select(
-          'title composer tonic meter tempo columns rows satb createdAt updatedAt'
+          'title composer format version score.context createdAt updatedAt'
         )
         .sort({ updatedAt: -1 })
         .skip(skip)
@@ -227,19 +234,17 @@ export const updateScore = async (req, res) => {
       });
     }
 
-    const score = await Score.findOneAndUpdate(
-      {
-        _id: id,
-      },
-      {
-        $set: updates,
-      },
-      {
-        context: 'query',
-        returnDocument: 'after',
-        runValidators: true,
-      }
-    );
+    const score = await Score.findById(id);
+
+    if (!score) {
+      return res.status(404).json({
+        success: false,
+        message: 'Score not found.',
+      });
+    }
+
+    Object.assign(score, updates);
+    await score.save();
 
     if (!score) {
       return res.status(404).json({
