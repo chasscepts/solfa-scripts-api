@@ -384,7 +384,7 @@ const ColumnsSchema = new Schema(
       required: true,
       validate: {
         validator: (value) => value.length <= 1000,
-        message: 'A script cannot contain more than 1000 columns.',
+        message: 'A score cannot contain more than 1000 columns.',
       },
     },
 
@@ -515,7 +515,7 @@ const StructuredSectionSchema = new Schema(
 |--------------------------------------------------------------------------
 */
 
-const ScriptSchema = new Schema(
+const ScoreSchema = new Schema(
   {
     tonic: {
       type: String,
@@ -589,7 +589,7 @@ const ScriptSchema = new Schema(
       required: true,
       validate: {
         validator: (value) => value.length <= 100,
-        message: 'A script cannot contain more than 100 sections.',
+        message: 'A score cannot contain more than 100 sections.',
       },
     },
     isDeleted: {
@@ -627,7 +627,7 @@ const ScriptSchema = new Schema(
 |--------------------------------------------------------------------------
 */
 
-ScriptSchema.pre('validate', function () {
+ScoreSchema.pre('validate', function () {
   for (const section of this.structuredNotes || []) {
     for (const part of section.parts || []) {
       if (!part || typeof part !== 'object') {
@@ -661,6 +661,6 @@ ScriptSchema.pre('validate', function () {
   }
 });
 
-const Script = mongoose.model('SolfaScript', ScriptSchema);
+const Score = mongoose.model('Score', ScoreSchema);
 
-export default Script;
+export default Score;

@@ -7,7 +7,7 @@ import StatusCodes from '../utils/statusCodes.js';
 const MAX_PAGE_LIMIT = 50;
 const DEFAULT_PAGE_LIMIT = 25;
 
-const SCRIPT_FIELDS = [
+const SCORE_FIELDS = [
   'tonic',
   'meter',
   'tempo',
@@ -152,20 +152,20 @@ export const sessionOptions = (session) => (session ? { session } : undefined);
 
 export const withSession = (query, session) => (session ? query.session(session) : query);
 
-export const fillScriptFields = (script, song) => {
-  if (!(script && song)) return script;
+export const fillScoreFields = (score, song) => {
+  if (!(score && song)) return score;
 
   return {
-    ...script,
+    ...score,
     title: song.title,
     composer: song.composer,
   };
 };
 
-export const pickScriptFields = (body = {}) => {
+export const pickScoreFields = (body = {}) => {
   const data = {};
 
-  for (const field of SCRIPT_FIELDS) {
+  for (const field of SCORE_FIELDS) {
     if (Object.prototype.hasOwnProperty.call(body, field)) {
       data[field] = body[field];
     }

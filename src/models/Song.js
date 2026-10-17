@@ -10,8 +10,7 @@ const songSchema = new Schema({
   liturgicalFunction: { type: String, required: false, default: '' },
   liturgicalSeason: { type: String, required: false, default: '' },
   musicalStyle: { type: String, required: false, default: '' },
-  solfaScript: { type: Schema.Types.ObjectId, ref: 'SolfaScript', required: false, default: null },
-  staffScript: { type: Schema.Types.ObjectId, ref: 'StaffScript', required: false, default: null },
+  score: { type: Schema.Types.ObjectId, ref: 'Score', required: false, default: null },
   title: { type: String, required: false, default: '' },
 }, { timestamps: true });
 

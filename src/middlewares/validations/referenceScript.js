@@ -9,16 +9,11 @@ export const referenceScriptSchema = Joi.object({
   liturgicalSeason: Joi.string().allow('').optional(),
   musicalStyle: Joi.string().allow('').optional(),
   photos: Joi.array().min(1).items(objectId).required(),
-  script: objectId.allow(null).optional(),
+  score: objectId.allow(null).optional(),
   title: Joi.string().allow('').optional(),
 });
 
 export const updateReferenceScriptSchema = Joi.object({
-  script: objectId.allow(null).optional(),
-  scriptRef: Joi.string().valid('SolfaScript').when('script', {
-    is: objectId.required(),
-    then: Joi.required(),
-    otherwise: Joi.forbidden(),
-  }),
+  score: objectId.allow(null).optional(),
   editor: objectId.allow(null).optional(),
 });

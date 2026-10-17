@@ -1,11 +1,11 @@
 import mongoose from 'mongoose';
 
 import {
-  SolfaScript,
+  Score,
   Song,
-  fillScriptFields,
+  fillScoreFields,
   getPagination,
-  pickScriptFields,
+  pickScoreFields,
   pickSongFields,
   withOptionalTransaction,
   withSession,
@@ -34,16 +34,16 @@ const sendValidationError = (res, error) => {
   return null;
 };
 
-export const createScript = async (req, res) => {
-  let script;
+export const createScore = async (req, res) => {
+  let score;
   let song;
 
   const cleanup = async () => {
-    if (script) {
+    if (score) {
       try {
-        await SolfaScript.deleteOne({ _id: script._id });
+        await Score.deleteOne({ _id: score._id });
       } catch {
-        // ignore any errors while deleting the script
+        // ignore any errors while deleting the score
       }
     }
     if (song) {
@@ -56,7 +56,7 @@ export const createScript = async (req, res) => {
   };
 
   try {
-    const result = await withOptionalTransaction(SolfaScript, async (session) => {
+    const result = await withOptionalTransaction(Score, async (session) => {
       const songData = pickSongFields(req.body);
 
       song = await withSession(Song.create(songData), session);
@@ -65,15 +65,15 @@ export const createScript = async (req, res) => {
         return { error: true, status: StatusCodes.UNPROCESSABLE_ENTITY, data: { message: 'Failed to create Song' } };
       }
 
-      const data = pickScriptFields(req.body);
+      const data = pickScoreFields(req.body);
 
-      script = await withSession(SolfaScript.create(data), session);
+      score = await withSession(Score.create(data), session);
 
-      if (!script) {
-        return { error: true, status: StatusCodes.UNPROCESSABLE_ENTITY, data: { message: 'Failed to create Solfa script' } };
+      if (!score) {
+        return { error: true, status: StatusCodes.UNPROCESSABLE_ENTITY, data: { message: 'Failed to create Score' } };
       }
 
-      return { error: false, status: 200, data: script };
+      return { error: false, status: 200, data: score };
     });
 
     if (result.error) {
@@ -96,18 +96,18 @@ export const createScript = async (req, res) => {
 
 /*
 |--------------------------------------------------------------------------
-| GET /api/scripts
+| GET /api/scores
 |--------------------------------------------------------------------------
 */
 
-export const listScripts = async (req, res) => {
+export const listScores = async (req, res) => {
   try {
     const { page, limit, skip } = getPagination(req);
 
     /*
      * Optional search:
      *
-     * GET /api/scripts?search=Amazing
+     * GET /api/scores?search=Amazing
      */
     const search = String(req.query.search || '').trim();
 
@@ -129,8 +129,8 @@ export const listScripts = async (req, res) => {
       };
     }
 
-    const [scripts, total] = await Promise.all([
-      SolfaScript.find(filter)
+    const [scores, total] = await Promise.all([
+      Score.find(filter)
         .select(
           'title composer tonic meter tempo columns rows satb createdAt updatedAt'
         )
@@ -139,12 +139,12 @@ export const listScripts = async (req, res) => {
         .limit(limit)
         .lean(),
 
-      SolfaScript.countDocuments(filter),
+      Score.countDocuments(filter),
     ]);
 
     return res.status(200).json({
       success: true,
-      data: scripts,
+      data: scores,
       meta: {
         page,
         limit,
@@ -159,31 +159,31 @@ export const listScripts = async (req, res) => {
 
 /*
 |--------------------------------------------------------------------------
-| GET /api/scripts/:id
+|| GET /api/scores/:id
 |--------------------------------------------------------------------------
 */
 
-export const getScript = async (req, res) => {
+export const getScore = async (req, res) => {
   try {
     const { id } = req.params;
 
     if (!isValidObjectId(id)) {
       return res.status(404).json({
         success: false,
-        message: 'Script not found.',
+        message: 'Score not found.',
       });
     }
 
-    const script = await SolfaScript.findById(id).lean();
+    const score = await Score.findById(id).lean();
 
-    if (!script) {
+    if (!score) {
       return res.status(404).json({
         success: false,
-        message: 'Script not found.',
+        message: 'Score not found.',
       });
     }
 
-    const song = await Song.findOne({ solfaScript: script._id }).lean();
+    const song = await Song.findOne({ score: score._id }).lean();
 
     if (!song) {
       return res.status(404).json({
@@ -192,7 +192,7 @@ export const getScript = async (req, res) => {
       });
     }
 
-    return res.status(200).json(fillScriptFields(script, song));
+    return res.status(200).json(fillScoreFields(score, song));
   } catch (error) {
     return handleError(error, res);
   }
@@ -200,24 +200,22 @@ export const getScript = async (req, res) => {
 
 /*
 |--------------------------------------------------------------------------
-| PATCH /api/scripts/:id
+|| PATCH /api/scores/:id
 |--------------------------------------------------------------------------
 */
 
-export const updateScript = async (req, res) => {
+export const updateScore = async (req, res) => {
   try {
     const { id } = req.params;
 
     if (!isValidObjectId(id)) {
       return res.status(404).json({
         success: false,
-        message: 'Script not found.',
+        message: 'Score not found.',
       });
     }
 
-    const updates = pickScriptFields(req.body);
-
-    console.log(req.body);
+    const updates = pickScoreFields(req.body);
 
     /*
      * Prevent PATCH {} from silently succeeding.
@@ -229,7 +227,7 @@ export const updateScript = async (req, res) => {
       });
     }
 
-    const script = await SolfaScript.findOneAndUpdate(
+    const score = await Score.findOneAndUpdate(
       {
         _id: id,
       },
@@ -243,17 +241,17 @@ export const updateScript = async (req, res) => {
       }
     );
 
-    if (!script) {
+    if (!score) {
       return res.status(404).json({
         success: false,
-        message: 'Script not found.',
+        message: 'Score not found.',
       });
     }
 
     return res.status(200).json({
       success: true,
-      message: 'Script updated successfully.',
-      data: script,
+      message: 'Score updated successfully.',
+      data: score,
     });
   } catch (error) {
     const handled = sendValidationError(res, error);
@@ -268,22 +266,22 @@ export const updateScript = async (req, res) => {
 
 /*
 |--------------------------------------------------------------------------
-| DELETE /api/scripts/:id
+| DELETE /api/scores/:id
 |--------------------------------------------------------------------------
 */
 
-export const deleteScript = async (req, res) => {
+export const deleteScore = async (req, res) => {
   try {
     const { id } = req.params;
 
     if (!isValidObjectId(id)) {
       return res.status(404).json({
         success: false,
-        message: 'Script not found.',
+        message: 'Score not found.',
       });
     }
 
-    const script = await SolfaScript.findOneAndUpdate(
+    const score = await Score.findOneAndUpdate(
       { _id: id },
       { $set: { isDeleted: true } },
       {
@@ -294,16 +292,16 @@ export const deleteScript = async (req, res) => {
       },
     );
 
-    if (!script) {
+    if (!score) {
       return res.status(404).json({
         success: false,
-        message: 'Script not found.',
+        message: 'Score not found.',
       });
     }
 
     return res.status(200).json({
       success: true,
-      message: 'Script deleted successfully.',
+      message: 'Score deleted successfully.',
     });
   } catch (error) {
     return handleError(error, res);

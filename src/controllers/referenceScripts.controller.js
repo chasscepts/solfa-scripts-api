@@ -1,11 +1,11 @@
 import {
   ReferenceScript,
   Photo,
-  SolfaScript,
+  Score,
   Song,
   getPagination,
   isValidObjectId,
-  pickScriptFields,
+  pickScoreFields,
   pickSongFields,
   withSession,
   withOptionalTransaction,
@@ -140,12 +140,12 @@ export const createScript = async (req, res) => {
 export const claimEdit = async (req, res) => {
   let referenceScript;
   let song;
-  let script;
+  let score;
 
   const cleanup = async () => {
-    if (script) {
+    if (score) {
       try {
-        await SolfaScript.findByIdAndDelete(script._id);
+        await Score.findByIdAndDelete(score._id);
       } catch {
         // ignore errors during cleanup
       }
@@ -206,19 +206,19 @@ export const claimEdit = async (req, res) => {
 
       const formData = { ...referenceScript, ...scriptData };
       const songFormData = pickSongFields(formData);
-      const scriptFormData = pickScriptFields(formData);
+      const scoreFormData = pickScoreFields(formData);
       
-      script = await withSession(
-        SolfaScript.create(scriptFormData), session,
+      score = await withSession(
+        Score.create(scoreFormData), session,
       );
 
-      if (!script) {
+      if (!score) {
         referenceScript = null;
 
         return {
           error: true,
           status: StatusCodes.UNPROCESSABLE_ENTITY,
-          data: { message: 'Failed to create Solfa script' },
+          data: { message: 'Failed to create script' },
         };
       }
 
@@ -226,7 +226,7 @@ export const claimEdit = async (req, res) => {
         Song.create({
           ...songFormData,
           editor: req.user._id,
-          solfaScript: script._id,
+          score: score._id,
         }), session,
       );
 
@@ -244,12 +244,14 @@ export const claimEdit = async (req, res) => {
         ReferenceScript.findByIdAndUpdate(
           referenceScript._id,
           { editor: req.user._id, song: song._id },
-          { new: true }
+          { returnDocument: 'after' }
         ), session,
       );
 
-      return { error: false, status: 200, data: { status: 'success', _id: script._id } };
+      return { error: false, status: 200, data: { status: 'success', _id: score._id } };
     });
+
+    console.log(result);
 
     if (result.error) {
       cleanup();
@@ -265,19 +267,11 @@ export const claimEdit = async (req, res) => {
 export const updateScript = async (req, res) => {
   try {
     const {
-      body: { script: solfaScript, scriptRef, editor },
+      body: { editor },
       params: { id },
     } = req;
     const updateData = {};
 
-    if (solfaScript) {
-      if (!scriptRef) {
-        throwError('scriptRef is required when updating the script', 400);
-      }
-
-      updateData.script = solfaScript;
-      updateData.scriptRef = scriptRef;
-    }
     if (editor) {
       if (!isValidObjectId(editor)) {
         throwError('Invalid editor ID', 400);
