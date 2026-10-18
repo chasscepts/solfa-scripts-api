@@ -64,20 +64,23 @@ export const createScore = async (req, res) => {
 
   try {
     const result = await withOptionalTransaction(Score, async (session) => {
-      const songData = pickSongFields(req.body);
-
-      song = await withSession(Song.create(songData), session);
-
-      if (!song) {
-        return { error: true, status: StatusCodes.UNPROCESSABLE_ENTITY, data: { message: 'Failed to create Song' } };
-      }
-
       const data = pickScoreFields(req.body);
 
       score = await withSession(Score.create(data), session);
 
       if (!score) {
         return { error: true, status: StatusCodes.UNPROCESSABLE_ENTITY, data: { message: 'Failed to create Score' } };
+      }
+
+      const songData = pickSongFields(req.body);
+
+      song = await withSession(Song.create({
+        ...songData,
+        score: score._id,
+      }), session);
+
+      if (!song) {
+        return { error: true, status: StatusCodes.UNPROCESSABLE_ENTITY, data: { message: 'Failed to create Song' } };
       }
 
       return { error: false, status: 200, data: score };
@@ -192,14 +195,7 @@ export const getScore = async (req, res) => {
 
     const song = await Song.findOne({ score: score._id }).lean();
 
-    if (!song) {
-      return res.status(404).json({
-        success: false,
-        message: 'Associated song not found.',
-      });
-    }
-
-    return res.status(200).json(fillScoreFields(score, song));
+    return res.status(200).json(song ? fillScoreFields(score, song) : score);
   } catch (error) {
     return handleError(error, res);
   }
