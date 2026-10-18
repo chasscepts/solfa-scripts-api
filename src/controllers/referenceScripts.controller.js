@@ -13,6 +13,7 @@ import {
 
 import { handleError, throwError } from '../utils/errors/index.js';
 import { Roles } from '../utils/roles.js';
+import { validateCanonicalScoreDocument } from '../utils/canonicalScore.js';
 import StatusCodes from '../utils/statusCodes.js';
 
 export const listScripts = async (req, res) => {
@@ -179,6 +180,19 @@ export const claimEdit = async (req, res) => {
           data: { message: 'Invalid script or type' },
         };
       }
+
+      // Claiming an edit is currently the only score-creation route used by
+      // the composer. Reject legacy or incomplete musical payloads before
+      // allocating the reference script, score, and song records.
+      try {
+        validateCanonicalScoreDocument(scriptData);
+      } catch (error) {
+        return {
+          error: true,
+          status: StatusCodes.BAD_REQUEST,
+          data: { message: error.message },
+        };
+      }
       
       referenceScript = await withSession(
         ReferenceScript.findById(id), session,
@@ -250,8 +264,6 @@ export const claimEdit = async (req, res) => {
 
       return { error: false, status: 200, data: { status: 'success', _id: score._id } };
     });
-
-    console.log(result);
 
     if (result.error) {
       cleanup();
