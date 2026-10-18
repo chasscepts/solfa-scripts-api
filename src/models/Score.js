@@ -1,17 +1,15 @@
 import mongoose from 'mongoose';
 
-import { validateCanonicalScoreDocument } from '../utils/canonicalScore.js';
+import { validateCanonicalScoreDocument, SCORE_FORMATS, SCORE_VERSIONS } from '../utils/canonicalScore.js';
 
 const { Schema } = mongoose;
 
 const ScoreSchema = new Schema({
-  composer: { type: String, default: '' },
-  format: { type: String, enum: ['choirconnect-canonical-score'], required: true },
+  format: { type: String, enum: SCORE_FORMATS, required: true },
   isDeleted: { type: Boolean, default: false },
   layout: { type: [Schema.Types.Mixed], required: true },
   score: { type: Schema.Types.Mixed, required: true },
-  title: { type: String, default: '' },
-  version: { type: Number, enum: [1], required: true },
+  version: { type: Number, enum: SCORE_VERSIONS, required: true },
 }, {
   minimize: false,
   strict: true,

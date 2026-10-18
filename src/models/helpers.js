@@ -8,11 +8,9 @@ const MAX_PAGE_LIMIT = 50;
 const DEFAULT_PAGE_LIMIT = 25;
 
 const SCORE_FIELDS = [
-  'composer',
   'format',
   'layout',
   'score',
-  'title',
   'version',
 ];
 

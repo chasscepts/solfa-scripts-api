@@ -10,6 +10,11 @@ const VOICES = new Set(['soprano', 'alto', 'tenor', 'bass']);
 const REST = '𝄽';
 const HOLD = '—';
 
+export const VERSION = 1;
+export const SCORE_VERSIONS = [VERSION];
+export const CANONICAL_SCORE_FORMAT = 'choirconnect-canonical-score';
+export const SCORE_FORMATS = [CANONICAL_SCORE_FORMAT];
+
 const invalid = (message) => {
   throw new Error('Invalid canonical score: ' + message);
 };
@@ -47,7 +52,7 @@ const inspectBeat = (beat, ids, previous, voice) => {
 
 export const validateCanonicalScoreDocument = (document) => {
   assert(object(document), 'Expected an object.');
-  assert(document.format === 'choirconnect-canonical-score' && document.version === 1,
+  assert(document.format === CANONICAL_SCORE_FORMAT && document.version === VERSION,
     'Unsupported format or version.');
   assert(Array.isArray(document.layout), 'Layout must be an array.');
   assert(object(document.score) && object(document.score.context) &&
