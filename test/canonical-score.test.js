@@ -69,6 +69,24 @@ describe('canonical score document validation', () => {
     assert.throws(() => validateCanonicalScoreDocument(input), /IDs only/);
   });
 
+  it('accepts one display column spanning two musical measures', () => {
+    const input = document();
+
+    input.score.parts[0].measures.push({
+      id: 'second-measure',
+      slots: [
+        beat('third', 'f'),
+        beat('fourth', 's'),
+      ],
+    });
+    input.layout[0].parts[0].columns[0].notes.push(
+      { id: 'cell-3' },
+      { id: 'cell-4' },
+    );
+
+    assert.equal(validateCanonicalScoreDocument(input), input);
+  });
+
   it('rejects a layout that does not represent the score', () => {
     const input = document();
 

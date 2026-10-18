@@ -124,15 +124,23 @@ export const validateCanonicalScoreDocument = (document) => {
         'Layout references an unknown voice.');
       const scorePart = parts.find((item) => item.id === part.voice);
 
-      for (const column of part.columns) {
-        const measure = scorePart.measures[cursors.get(part.voice)];
+      const beatsPerMeasure = Number(meter[1]);
 
-        assert(measure && Array.isArray(column.notes) &&
-          column.notes.length === measure.slots.length, 'Layout and score widths disagree.');
+      for (const column of part.columns) {
+        assert(Array.isArray(column.notes) && column.notes.length > 0 &&
+          column.notes.length % beatsPerMeasure === 0,
+        'Layout column width must be a whole number of measures.');
+        const span = column.notes.length / beatsPerMeasure;
+        const start = cursors.get(part.voice);
+        const measures = scorePart.measures.slice(start, start + span);
+
+        assert(measures.length === span &&
+          measures.every((measure) => measure.slots.length === beatsPerMeasure),
+        'Layout and score widths disagree.');
         assert(column.notes.every((cell) => object(cell) && nonempty(cell.id) &&
           Object.keys(cell).every((key) => key === 'id')),
         'Layout cells must contain IDs only.');
-        cursors.set(part.voice, cursors.get(part.voice) + 1);
+        cursors.set(part.voice, start + span);
       }
     }
   }
