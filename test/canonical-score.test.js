@@ -87,10 +87,20 @@ describe('canonical score document validation', () => {
     assert.equal(validateCanonicalScoreDocument(input), input);
   });
 
-  it('rejects a layout that does not represent the score', () => {
+  it('rejects a layout column containing a partial measure', () => {
     const input = document();
 
     input.layout[0].parts[0].columns[0].notes.pop();
+    assert.throws(() => validateCanonicalScoreDocument(input), /whole number of measures/);
+  });
+
+  it('rejects a whole-measure layout that exceeds the score', () => {
+    const input = document();
+
+    input.layout[0].parts[0].columns[0].notes.push(
+      { id: 'cell-3' },
+      { id: 'cell-4' },
+    );
     assert.throws(() => validateCanonicalScoreDocument(input), /widths disagree/);
   });
 });
