@@ -94,6 +94,29 @@ describe('canonical score document validation', () => {
     assert.throws(() => validateCanonicalScoreDocument(input), /whole number of measures/);
   });
 
+  it('accepts voices absent from a row when their measures are empty', () => {
+    const input = document();
+
+    input.layout.push({
+      id: 'second-row',
+      parts: [{
+        columns: [{ id: 'alto-column', notes: [{ id: 'alto-cell-1' }, { id: 'alto-cell-2' }] }],
+        type: 'voice',
+        voice: 'alto',
+      }],
+    });
+    input.score.parts[0].measures.push({ id: 'soprano-empty', slots: [null, null] });
+    input.score.parts.push({
+      id: 'alto',
+      measures: [
+        { id: 'alto-empty', slots: [null, null] },
+        { id: 'alto-measure', slots: [beat('alto-one', 'd'), beat('alto-two', 'r')] },
+      ],
+    });
+
+    assert.equal(validateCanonicalScoreDocument(input), input);
+  });
+
   it('rejects a whole-measure layout that exceeds the score', () => {
     const input = document();
 

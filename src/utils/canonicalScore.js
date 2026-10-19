@@ -116,6 +116,19 @@ export const validateCanonicalScoreDocument = (document) => {
   for (const row of document.layout) {
     assert(object(row) && Array.isArray(row.parts), 'Invalid layout row.');
 
+    const presentVoices = new Set(row.parts
+      .filter((part) => part.type === 'voice')
+      .map((part) => part.voice));
+    const representative = row.parts.find((part) => part.type === 'voice');
+    const beatsPerMeasure = Number(meter[1]);
+    const rowSpan = representative?.columns.reduce((count, column) => {
+      assert(Array.isArray(column.notes) && column.notes.length > 0 &&
+        column.notes.length % beatsPerMeasure === 0,
+      'Layout column width must be a whole number of measures.');
+
+      return count + column.notes.length / beatsPerMeasure;
+    }, 0) || 0;
+
     for (const part of row.parts) {
       assert(object(part), 'Invalid layout part.');
       if (part.type !== 'voice') continue;
@@ -142,6 +155,19 @@ export const validateCanonicalScoreDocument = (document) => {
         'Layout cells must contain IDs only.');
         cursors.set(part.voice, start + span);
       }
+    }
+
+    for (const part of parts) {
+      if (presentVoices.has(part.id)) continue;
+
+      const start = cursors.get(part.id);
+      const absent = part.measures.slice(start, start + rowSpan);
+
+      assert(absent.length === rowSpan && absent.every((measure) =>
+        measure.slots.length === beatsPerMeasure &&
+        measure.slots.every((slot) => slot === null)),
+      'Absent layout voices must contain empty measures.');
+      cursors.set(part.id, start + rowSpan);
     }
   }
 
