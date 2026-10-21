@@ -135,6 +135,11 @@ export const validateCanonicalScoreDocument = (document) => {
 
       assert(voices.has(part.voice) && Array.isArray(part.columns),
         'Layout references an unknown voice.');
+      assert(part.columns.length === (representative?.columns.length || 0) &&
+        part.columns.every((column, index) =>
+          Array.isArray(column.notes) &&
+          column.notes.length === representative.columns[index].notes.length),
+      'Voices in the same row must have matching column widths.');
       const scorePart = parts.find((item) => item.id === part.voice);
 
       const beatsPerMeasure = Number(meter[1]);
