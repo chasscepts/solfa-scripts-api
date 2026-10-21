@@ -45,6 +45,24 @@ describe('canonical score document validation', () => {
     assert.equal(validateCanonicalScoreDocument(input), input);
   });
 
+  it('accepts editor-view provenance without changing musical validation', () => {
+    const input = document();
+
+    input.editorViews = {
+      solfa: { layout: structuredClone(input.layout) },
+      staff: { clefs: { soprano: 'treble' } },
+    };
+    input.lastEditedIn = 'staff';
+
+    assert.equal(validateCanonicalScoreDocument(input), input);
+  });
+  it('rejects disagreement between the canonical and Solfa layouts', () => {
+    const input = document();
+
+    input.editorViews = { solfa: { layout: [] } };
+
+    assert.throws(() => validateCanonicalScoreDocument(input), /must match/);
+  });
   it('rejects an orphan HOLD', () => {
     const input = document();
 

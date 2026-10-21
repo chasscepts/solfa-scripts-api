@@ -55,6 +55,24 @@ export const validateCanonicalScoreDocument = (document) => {
   assert(document.format === CANONICAL_SCORE_FORMAT && document.version === VERSION,
     'Unsupported format or version.');
   assert(Array.isArray(document.layout), 'Layout must be an array.');
+  if (document.editorViews !== undefined) {
+    assert(object(document.editorViews) && object(document.editorViews.solfa) &&
+      Array.isArray(document.editorViews.solfa.layout),
+    'Editor views must include a Solfa layout.');
+    assert(Object.keys(document.editorViews).every((kind) => kind === 'solfa' || kind === 'staff'),
+      'Unknown editor view.');
+    assert(JSON.stringify(document.editorViews.solfa.layout) === JSON.stringify(document.layout),
+      'Solfa editor view must match the canonical layout.');
+    if (document.editorViews.staff !== undefined) {
+      assert(object(document.editorViews.staff), 'Staff editor view must be an object.');
+    }
+  }
+  if (document.lastEditedIn !== undefined) {
+    assert(document.lastEditedIn === 'solfa' || document.lastEditedIn === 'staff',
+      'Unknown last editing view.');
+    assert(document.lastEditedIn !== 'staff' || object(document.editorViews?.staff),
+      'A Staff edit requires a saved Staff view.');
+  }
   assert(object(document.score) && object(document.score.context) &&
     Array.isArray(document.score.parts), 'Missing score parts or context.');
   const { context, parts } = document.score;
