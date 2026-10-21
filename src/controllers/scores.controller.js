@@ -18,6 +18,13 @@ const isValidObjectId = (id) => {
 };
 
 const sendValidationError = (res, error) => {
+  if (error?.message?.startsWith('Invalid canonical score:')) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+
   if (error instanceof mongoose.Error.ValidationError) {
     return res.status(400).json({
       success: false,
@@ -57,20 +64,23 @@ export const createScore = async (req, res) => {
 
   try {
     const result = await withOptionalTransaction(Score, async (session) => {
-      const songData = pickSongFields(req.body);
-
-      song = await withSession(Song.create(songData), session);
-
-      if (!song) {
-        return { error: true, status: StatusCodes.UNPROCESSABLE_ENTITY, data: { message: 'Failed to create Song' } };
-      }
-
       const data = pickScoreFields(req.body);
 
       score = await withSession(Score.create(data), session);
 
       if (!score) {
         return { error: true, status: StatusCodes.UNPROCESSABLE_ENTITY, data: { message: 'Failed to create Score' } };
+      }
+
+      const songData = pickSongFields(req.body);
+
+      song = await withSession(Song.create({
+        ...songData,
+        score: score._id,
+      }), session);
+
+      if (!song) {
+        return { error: true, status: StatusCodes.UNPROCESSABLE_ENTITY, data: { message: 'Failed to create Song' } };
       }
 
       return { error: false, status: 200, data: score };
@@ -132,7 +142,7 @@ export const listScores = async (req, res) => {
     const [scores, total] = await Promise.all([
       Score.find(filter)
         .select(
-          'title composer tonic meter tempo columns rows satb createdAt updatedAt'
+          'title composer format version score.context createdAt updatedAt'
         )
         .sort({ updatedAt: -1 })
         .skip(skip)
@@ -185,14 +195,7 @@ export const getScore = async (req, res) => {
 
     const song = await Song.findOne({ score: score._id }).lean();
 
-    if (!song) {
-      return res.status(404).json({
-        success: false,
-        message: 'Associated song not found.',
-      });
-    }
-
-    return res.status(200).json(fillScoreFields(score, song));
+    return res.status(200).json(song ? fillScoreFields(score, song) : score);
   } catch (error) {
     return handleError(error, res);
   }
@@ -227,19 +230,17 @@ export const updateScore = async (req, res) => {
       });
     }
 
-    const score = await Score.findOneAndUpdate(
-      {
-        _id: id,
-      },
-      {
-        $set: updates,
-      },
-      {
-        context: 'query',
-        returnDocument: 'after',
-        runValidators: true,
-      }
-    );
+    const score = await Score.findById(id);
+
+    if (!score) {
+      return res.status(404).json({
+        success: false,
+        message: 'Score not found.',
+      });
+    }
+
+    Object.assign(score, updates);
+    await score.save();
 
     if (!score) {
       return res.status(404).json({
