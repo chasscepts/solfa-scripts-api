@@ -87,6 +87,28 @@ describe('canonical score document validation', () => {
     assert.equal(validateCanonicalScoreDocument(input), input);
   });
 
+  it('rejects unequal column widths for voices sharing a row', () => {
+    const input = document();
+
+    input.layout[0].parts.push({
+      columns: [{ id: 'alto-column', notes: [
+        { id: 'alto-cell-1' }, { id: 'alto-cell-2' },
+        { id: 'alto-cell-3' }, { id: 'alto-cell-4' },
+      ] }],
+      type: 'voice',
+      voice: 'alto',
+    });
+    input.score.parts.push({
+      id: 'alto',
+      measures: [
+        { id: 'alto-first', slots: [null, null] },
+        { id: 'alto-second', slots: [null, null] },
+      ],
+    });
+
+    assert.throws(() => validateCanonicalScoreDocument(input), /matching column widths/);
+  });
+
   it('rejects a layout column containing a partial measure', () => {
     const input = document();
 
